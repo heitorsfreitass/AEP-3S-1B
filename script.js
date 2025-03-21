@@ -3,27 +3,53 @@ document.addEventListener("DOMContentLoaded", function () {
 });
 
 let bicicletasDisponiveis = [
-    { id: 1, x: 100, y: 200, nome: "Praça Central", disponivel: true, status: "available", rentalStartTime:null, problemReport:null},
-    { id: 2, x: 250, y: 150, nome: "Shopping Principal", disponivel: true, status: "available", rentalStartTime:null, problemReport:null},
-    { id: 3, x: 400, y: 300, nome: "Estádio Municipal", disponivel: true, status: "available", rentalStartTime:null, problemReport:null}
+    { id: 1, lat: -23.4184, lng: -51.9324, nome: "Shopping Avenida Center", disponivel: true, status: "available", rentalStartTime:null, problemReport:null},
+    { id: 2, lat: -23.4266, lng: -51.9380, nome: "Praça da Catedral", disponivel: true, status: "available", rentalStartTime:null, problemReport:null},
+    { id: 3, lat: -23.4260, lng: -51.9330, nome: "Parque do Ingá", disponivel: true, status: "available", rentalStartTime:null, problemReport:null}
 ];
 
+let mapa;
+
 function atualizarMapa() {
-    let mapa = document.getElementById("mapa");
-    mapa.innerHTML = ""; 
-    bicicletasDisponiveis.forEach(bike => {
-        let ponto = document.createElement("div");
-        ponto.classList.add("ponto");
-        if (bike.status === "maintenance") {
-            ponto.classList.add("manutencao");
-        } else if (!bike.disponivel) {
-            ponto.classList.add("indisponivel");
+    if (!mapa) {
+        mapa = L.map('mapa').setView([-23.4273, -51.9375], 14);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(mapa);
+    } 
+
+    //remover marcadores antigos
+    mapa.eachLayer(layer => {
+        if (layer instanceof L.Marker) {
+            mapa.removeLayer(layer);
         }
-        ponto.style.left = bike.x + "px";
-        ponto.style.top = bike.y + "px";
-        ponto.title = `${bike.nome} - ${bike.status === "maintenance" ? "Em Manutenção" : (bike.disponivel ? "Disponível" : "Indisponível")}`;
-        ponto.onclick = () => selecionarBicicleta(bike.id);
-        mapa.appendChild(ponto);
+    })
+
+    bicicletasDisponiveis.forEach(bike => {
+        // let ponto = document.createElement("div");
+        let cor;
+        // ponto.classList.add("ponto");
+        if (bike.status === "maintenance") {
+            cor = "red";
+        } else if (!bike.disponivel) {
+            cor = "gray";
+        } else {
+            cor = "green";
+        }
+
+        let marcador = L.circleMarker([bike.lat, bike.lng], {
+            color: cor,
+            radius: 8,
+            fillOpacity: 0.8
+        }).addTo(mapa);
+
+        marcador.bindPopup(`<strong>${bike.nome}</strong><br>Status: ${bike.status === "maintenance" ? "Em Manutenção" : (bike.disponivel ? "Disponível" : "Indisponível")}`);
+
+        // ponto.style.left = bike.x + "px";
+        // ponto.style.top = bike.y + "px";
+        // ponto.title = `${bike.nome} - ${bike.status === "maintenance" ? "Em Manutenção" : (bike.disponivel ? "Disponível" : "Indisponível")}`;
+        // ponto.onclick = () => selecionarBicicleta(bike.id);
+        // mapa.appendChild(ponto);
     });
 }
 
