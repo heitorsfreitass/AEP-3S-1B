@@ -71,6 +71,9 @@ h1 {
 .ponto.indisponivel {
     background-color: red;
 }
+.ponto.manutencao {
+    background-color: orange;
+}
 .ponto:hover {
     transform: translate(-50%, -50%) scale(1.2);
 }
