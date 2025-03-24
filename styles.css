@@ -92,3 +92,45 @@ h1 {
 #notificacao.erro {
     background-color: #dc3545;
 }
+
+.botao:disabled {
+    background-color: #666 !important;
+    cursor: not-allowed;
+    opacity: 0.7;
+    transform: none !important;
+}
+
+#countdownDisplay {
+    position: fixed;
+    bottom: 20px;
+    left: 20px;
+    background-color: #ffc107;
+    padding: 15px;
+    border-radius: 5px;
+    z-index: 1000;
+    color: #000;
+}
+
+#countdownDisplay button {
+    background-color: #28a745;
+    color: white;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+
+#rentalTimer {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #333;
+    border-radius: 5px;
+}
+
+#timerDisplay {
+    font-size: 24px;
+    font-weight: bold;
+    color: #4CAF50;
+    margin: 10px 0;
+    text-align: center;
+}
