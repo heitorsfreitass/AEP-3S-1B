@@ -217,27 +217,43 @@ function confirmarChegada(bikeId) {
         if (countdownDiv) {
             document.body.removeChild(countdownDiv);
         }
-        
+
         const bike = bicicletasDisponiveis.find(b => b.id === bikeId);
         if (bike && bike.status === "reserved") {
             bike.status = "rented";
             bike.rentalStartTime = new Date();
-            rentalStartTime = new Date(); // Store rental start time
+            rentalStartTime = new Date();
             bike.rentedBy = "Heitor";
             bike.reservedBy = null;
             currentRental = bike.id;
             currentReservation = null;
+
+            // Make sure timer display exists
+            if (!document.getElementById('timerDisplay')) {
+                const timerDiv = document.createElement('div');
+                timerDiv.id = 'timerDisplay';
+                timerDiv.style.position = 'fixed';
+                timerDiv.style.bottom = '20px';
+                timerDiv.style.right = '20px';
+                timerDiv.style.backgroundColor = 'white';
+                timerDiv.style.padding = '10px';
+                timerDiv.style.borderRadius = '5px';
+                timerDiv.style.boxShadow = '0 0 10px rgba(0,0,0,0.5)';
+                document.body.appendChild(timerDiv);
+            }
+
             atualizarMapa();
             exibirBicicletas();
             updateButtonStates();
             updateRentalInfo();
             mostrarNotificacao('Aluguel iniciado! Após término, devolva a bicicleta em algum dos lugares marcados.');
-            // locais de devolucao
+
+            // Add return locations
             locaisDeDevolucao.forEach(loc => {
                 let marker = L.marker([loc.lat, loc.lng]).addTo(mapa);
                 marker.bindPopup(`<b>Devolução</b>: ${loc.nome}`);
             });
-            
+
             // Start rental timer
             startRentalTimer();
         }
@@ -249,24 +265,24 @@ function startRentalTimer() {
     if (rentalTimer) {
         clearInterval(rentalTimer);
     }
-    
+
     // Update immediately
     updateRentalTimerDisplay();
-    
+
     // Update every second
     rentalTimer = setInterval(updateRentalTimerDisplay, 1000);
 }
 
 function updateRentalTimerDisplay() {
     if (!rentalStartTime) return;
-    
+
     const now = new Date();
     const elapsed = new Date(now - rentalStartTime);
-    
+
     const hours = String(elapsed.getUTCHours()).padStart(2, '0');
     const minutes = String(elapsed.getUTCMinutes()).padStart(2, '0');
     const seconds = String(elapsed.getUTCSeconds()).padStart(2, '0');
-    
+
     document.getElementById('timerDisplay').textContent = `${hours}:${minutes}:${seconds}`;
 }
 
@@ -281,34 +297,90 @@ function devolverBicicleta() {
         clearInterval(rentalTimer);
         rentalTimer = null;
     }
-    
+
+    // Remove timer display
+    const timerDisplay = document.getElementById('timerDisplay');
+    if (timerDisplay) {
+        timerDisplay.remove();
+    }
+
     let bike = bicicletasDisponiveis.find(b => b.id === currentRental && b.status === "rented");
     if (bike) {
+
+        const originalLat = bike.lat;
+        const originalLng = bike.lng;
+
         let rentalEndTime = new Date();
         let rentalDuration = rentalEndTime - bike.rentalStartTime;
-        
+
         // Calculate final rental time
         const elapsed = new Date(rentalDuration);
         const hours = String(elapsed.getUTCHours()).padStart(2, '0');
         const minutes = String(elapsed.getUTCMinutes()).padStart(2, '0');
         const seconds = String(elapsed.getUTCSeconds()).padStart(2, '0');
         const finalTime = `${hours}:${minutes}:${seconds}`;
-        
+
+        let devolucaoLocal = prompt("Digite o ID do local de devolução:");
+        devolucaoLocal = parseInt(devolucaoLocal);
+        if (isNaN(devolucaoLocal)) {
+            startRentalTimer();
+            mostrarNotificacao("ID inválido.", true);
+            return;
+        }
+
+        let local = locaisDeDevolucao.find(l => l.id === devolucaoLocal);
+        if (!local) {
+            startRentalTimer();
+            mostrarNotificacao("Local de devolução inválido.", true);
+            return;
+        }
+
+        // ver se ja tem uma bike nesse local
+        const bikeAtLocation = bicicletasDisponiveis.find(b =>
+            b.lat === local.lat &&
+            b.lng === local.lng &&
+            b.id !== bike.id &&  
+            b.status !== "rented" &&
+            b.status !== "reserved"
+        );
+
+        if (bikeAtLocation) {
+            // reseta time se ja tiver
+            startRentalTimer();
+            mostrarNotificacao(`Já existe uma bicicleta (ID: ${bikeAtLocation.id}) neste local de devolução. Escolha outro local.`, true);
+            return;
+        }
+
+        // atualiza a nova posição da bike
+        bike.lat = local.lat;
+        bike.lng = local.lng;
+        bike.nome = `Estação ${local.nome}`; 
+        bike.disponivel = true;
+        bike.rentalStartTime = null;
+        bike.rentedBy = null;
+        bike.reservedBy = null;
+
         let problemReport = prompt("Reporte algum problema (deixe em branco se não houver):");
-        if (problemReport) {
+        if (problemReport && problemReport.trim() !== "") {
             bike.problemReport = problemReport;
             bike.status = "maintenance";
             mostrarNotificacao(`Problema reportado: ${problemReport}. Bicicleta ${bike.id} - ${bike.nome} está em manutenção.`, true);
         } else {
             bike.status = "available";
+            bike.problemReport = null;
             mostrarNotificacao(`Você devolveu a bicicleta ${bike.id} - ${bike.nome} após ${finalTime}.`);
         }
-        
-        bike.disponivel = true;
-        bike.rentalStartTime = null;
-        bike.rentedBy = null;
+
         currentRental = null;
         rentalStartTime = null;
+
+        // refaz o mapa, remove os antigos markers
+        mapa.eachLayer(layer => {
+            if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
+                mapa.removeLayer(layer);
+            }
+        });
+
         atualizarMapa();
         exibirBicicletas();
         updateButtonStates();
