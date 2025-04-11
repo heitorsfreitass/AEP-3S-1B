@@ -13,6 +13,14 @@ let bicicletasDisponiveis = [
     { id: 5, lat: -23.4290, lng: -51.9480, nome: "Bosque II", disponivel: true, status: "available", rentalStartTime: null, problemReport: null, reservedBy: null, rentedBy: null }
 ];
 
+let locaisDeDevolucao = [
+    { id: 1, lat: -23.4227, lng: -51.9324, nome: "Shopping Maringá Park" },
+    { id: 2, lat: -23.4154, lng: -51.9380, nome: "Estádio Willie Davids" },
+    { id: 3, lat: -23.4260, lng: -51.9425, nome: "Colégio Marista" },
+    { id: 4, lat: -23.4380, lng: -51.9280, nome: "Cemitério Municipal" },
+    { id: 5, lat: -23.4188, lng: -51.9474, nome: "Atacadão" }
+]
+
 let mapa;
 
 document.addEventListener("DOMContentLoaded", function () {
@@ -119,7 +127,7 @@ function exibirBicicletas() {
 
 function pegarBicicleta() {
     if (currentRental) {
-        mostrarNotificacao("Você já tem uma bicicleta alugada. Devolva-a antes de reservar outra.", true);
+        mostrarNotificacao("Você já tem uma bicicleta alugada. Devolva-a em algum lugar de coleta antes de reservar outra.", true);
         return;
     }
 
@@ -223,7 +231,12 @@ function confirmarChegada(bikeId) {
             exibirBicicletas();
             updateButtonStates();
             updateRentalInfo();
-            mostrarNotificacao('Aluguel iniciado! Agora você está usando a bicicleta.');
+            mostrarNotificacao('Aluguel iniciado! Após término, devolva a bicicleta em algum dos lugares marcados.');
+            // locais de devolucao
+            locaisDeDevolucao.forEach(loc => {
+                let marker = L.marker([loc.lat, loc.lng]).addTo(mapa);
+                marker.bindPopup(`<b>Devolução</b>: ${loc.nome}`);
+            });
             
             // Start rental timer
             startRentalTimer();
