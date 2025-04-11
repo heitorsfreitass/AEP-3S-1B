@@ -251,7 +251,7 @@ function confirmarChegada(bikeId) {
             // Add return locations
             locaisDeDevolucao.forEach(loc => {
                 let marker = L.marker([loc.lat, loc.lng]).addTo(mapa);
-                marker.bindPopup(`<b>Devolução</b>: ${loc.nome}`);
+                marker.bindPopup(`<b>Devolução</b>: ${loc.nome} <br> <b>ID</b>: ${loc.id}`);
             });
 
             // Start rental timer
