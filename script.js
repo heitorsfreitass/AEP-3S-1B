@@ -65,7 +65,7 @@ function atualizarMapa() {
     }
 
     mapa.eachLayer(layer => {
-        if (layer instanceof L.Marker) {
+        if (layer instanceof L.CircleMarker) {
             mapa.removeLayer(layer);
         }
     });
@@ -261,15 +261,12 @@ function confirmarChegada(bikeId) {
 }
 
 function startRentalTimer() {
-    // Clear any existing timer
     if (rentalTimer) {
         clearInterval(rentalTimer);
     }
 
-    // Update immediately
     updateRentalTimerDisplay();
 
-    // Update every second
     rentalTimer = setInterval(updateRentalTimerDisplay, 1000);
 }
 
@@ -292,13 +289,11 @@ function devolverBicicleta() {
         return;
     }
 
-    // Stop the rental timer
     if (rentalTimer) {
         clearInterval(rentalTimer);
         rentalTimer = null;
     }
 
-    // Remove timer display
     const timerDisplay = document.getElementById('timerDisplay');
     if (timerDisplay) {
         timerDisplay.remove();
@@ -306,88 +301,126 @@ function devolverBicicleta() {
 
     let bike = bicicletasDisponiveis.find(b => b.id === currentRental && b.status === "rented");
     if (bike) {
-
-        const originalLat = bike.lat;
-        const originalLng = bike.lng;
-
-        let rentalEndTime = new Date();
-        let rentalDuration = rentalEndTime - bike.rentalStartTime;
-
-        // Calculate final rental time
+        const rentalDuration = new Date() - bike.rentalStartTime;
         const elapsed = new Date(rentalDuration);
-        const hours = String(elapsed.getUTCHours()).padStart(2, '0');
-        const minutes = String(elapsed.getUTCMinutes()).padStart(2, '0');
-        const seconds = String(elapsed.getUTCSeconds()).padStart(2, '0');
-        const finalTime = `${hours}:${minutes}:${seconds}`;
+        const finalTime = `${String(elapsed.getUTCHours()).padStart(2, '0')}:${String(elapsed.getUTCMinutes()).padStart(2, '0')}:${String(elapsed.getUTCSeconds()).padStart(2, '0')}`;
 
-        let devolucaoLocal = prompt("Digite o ID do local de devolução:");
-        devolucaoLocal = parseInt(devolucaoLocal);
+        let devolucaoLocal = parseInt(prompt("Digite o ID do local de devolução:"));
         if (isNaN(devolucaoLocal)) {
             startRentalTimer();
             mostrarNotificacao("ID inválido.", true);
             return;
         }
 
-        let local = locaisDeDevolucao.find(l => l.id === devolucaoLocal);
+        const local = locaisDeDevolucao.find(l => l.id === devolucaoLocal);
         if (!local) {
             startRentalTimer();
             mostrarNotificacao("Local de devolução inválido.", true);
             return;
         }
 
-        // ver se ja tem uma bike nesse local
-        const bikeAtLocation = bicicletasDisponiveis.find(b =>
-            b.lat === local.lat &&
-            b.lng === local.lng &&
-            b.id !== bike.id &&  
-            b.status !== "rented" &&
+        const bikeAtLocation = bicicletasDisponiveis.find(b => 
+            b.lat === local.lat && 
+            b.lng === local.lng && 
+            b.id !== bike.id &&
+            b.status !== "rented" && 
             b.status !== "reserved"
         );
 
         if (bikeAtLocation) {
-            // reseta time se ja tiver
             startRentalTimer();
-            mostrarNotificacao(`Já existe uma bicicleta (ID: ${bikeAtLocation.id}) neste local de devolução. Escolha outro local.`, true);
+            mostrarNotificacao(`Já existe uma bicicleta (ID: ${bikeAtLocation.id}) neste local. Escolha outro.`, true);
             return;
         }
 
-        // atualiza a nova posição da bike
         bike.lat = local.lat;
         bike.lng = local.lng;
-        bike.nome = `Estação ${local.nome}`; 
+        bike.nome = `Estação ${local.nome}`;
         bike.disponivel = true;
         bike.rentalStartTime = null;
         bike.rentedBy = null;
         bike.reservedBy = null;
 
-        let problemReport = prompt("Reporte algum problema (deixe em branco se não houver):");
+        const problemReport = prompt("Reporte algum problema (deixe em branco se não houver):");
         if (problemReport && problemReport.trim() !== "") {
             bike.problemReport = problemReport;
             bike.status = "maintenance";
-            mostrarNotificacao(`Problema reportado: ${problemReport}. Bicicleta ${bike.id} - ${bike.nome} está em manutenção.`, true);
+            mostrarNotificacao(`Problema reportado: ${problemReport}. Bicicleta ${bike.id} em manutenção.`, true);
         } else {
             bike.status = "available";
             bike.problemReport = null;
-            mostrarNotificacao(`Você devolveu a bicicleta ${bike.id} - ${bike.nome} após ${finalTime}.`);
+            mostrarNotificacao(`Bicicleta ${bike.id} devolvida após ${finalTime}.`);
         }
 
         currentRental = null;
         rentalStartTime = null;
 
-        // refaz o mapa, remove os antigos markers
+        // limpa os marcadores de bike  
         mapa.eachLayer(layer => {
-            if (layer instanceof L.Marker || layer instanceof L.CircleMarker) {
+            if (layer instanceof L.CircleMarker) {
                 mapa.removeLayer(layer);
             }
         });
 
-        atualizarMapa();
+        // recria os marcadores de bike 
+        bicicletasDisponiveis.forEach(b => {
+            const marker = L.circleMarker([b.lat, b.lng], {
+                color: getStatusColor(b.status),
+                radius: 8,
+                fillOpacity: 0.8
+            }).addTo(mapa);
+            
+            marker.bindPopup(createBikePopup(b));
+        });
+
+        updateDevolucaoMarkers();
+
         exibirBicicletas();
         updateButtonStates();
         updateRentalInfo();
     } else {
         mostrarNotificacao("Bicicleta não encontrada ou não está alugada.", true);
     }
+}
+
+function getStatusColor(status) {
+    switch(status) {
+        case "maintenance": return "red";
+        case "reserved": return "orange";
+        case "rented": return "gray";
+        default: return "green";
+    }
+}
+
+function createBikePopup(bike) {
+    let statusText;
+    switch(bike.status) {
+        case "maintenance":
+            statusText = `Em Manutenção${bike.problemReport ? ` (${bike.problemReport})` : ''}`;
+            break;
+        case "reserved":
+            statusText = `Reservada (${formatTime(countdownSeconds)} restante)`;
+            break;
+        case "rented":
+            statusText = `Alugada por ${bike.rentedBy || 'usuário'}`;
+            break;
+        default:
+            statusText = "Disponível";
+    }
+    return `<strong>${bike.nome}</strong><br><b>Bicicleta ID</b>: ${bike.id}<br><b>Status</b>: ${statusText}`;
+}
+
+// limpa marcadores de devolução existentes
+function updateDevolucaoMarkers() {
+    mapa.eachLayer(layer => {
+        if (layer instanceof L.Marker && 
+            locaisDeDevolucao.some(loc => 
+                layer.getLatLng().lat === loc.lat && 
+                layer.getLatLng().lng === loc.lng
+            )) {
+            mapa.removeLayer(layer);
+        }
+    });
 }
 
 function formatTime(seconds) {
